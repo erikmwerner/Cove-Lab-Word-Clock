@@ -1,13 +1,15 @@
 /* Cove Clock
- *  
- *  based off Javelin Word Clock
- *  https://github.com/nitrohawk/Javelin-Word-Clock/blob/master/Word_Clock.ino
- *  
- *  Written by Erik Werner and Monica Kim
- *  2017 12 14
- *  
- *  Version 1.1
- *  Updated 2015 12 15
+
+    based off Javelin Word Clock
+    https://github.com/nitrohawk/Javelin-Word-Clock/blob/master/Word_Clock.ino
+
+    Written by Erik Werner and Monica Kim
+    2017 12 14
+
+    Version 1.2
+    Updated 2015 12 15
+    Fixes brightness issue during rainbow
+    Adds date setting via serial port
  *  */
 
 
@@ -23,8 +25,15 @@
 #define RGBLEDPIN 6
 #define N_LEDS 117 // 13 x 9
 
-// TK not sure if needed for DS3231 RTC
-#define TIME_HEADER  "T"   // Header tag for serial time sync message
+// Assuming 5W TDP and 0.3W power draw per LED at full brightness:
+// 50 LEDS can be on at once at 33% brightness (85/255 PWM)
+// WARNING: do not set brightness above 100 or 150 and leave the clock on
+// for sustained periods of time!
+#define BRIGHTNESS 100 // 50 to 100 seems to work well 
+#define FADE_TIME 100
+
+#define TEST_MODE true
+#define TEST_SPEED 50
 
 // Define some variables for the clock
 String strTime = ""; // used to detect if word time has changed
@@ -36,11 +45,11 @@ DateTime now;
 
 // define colors by RGB values
 // to add colors, define them here so they can be reused
-uint32_t colorWhite = grid.Color(100, 100, 100);
+uint32_t colorWhite = grid.Color(BRIGHTNESS, BRIGHTNESS, BRIGHTNESS);
 uint32_t colorBlack = grid.Color(0, 0, 0);
-uint32_t colorRed = grid.Color(100, 0, 0);
-uint32_t colorGreen = grid.Color(0, 100, 0);
-uint32_t colorBlue = grid.Color(0, 0, 100);
+uint32_t colorRed = grid.Color(BRIGHTNESS, 0, 0);
+uint32_t colorGreen = grid.Color(0, BRIGHTNESS, 0);
+uint32_t colorBlue = grid.Color(0, 0, BRIGHTNESS);
 
 // the words to light up
 // each word is an array containing the
@@ -69,7 +78,7 @@ int arrFOUR[] = {44, 45, 46, 47, -1};
 int arrFIVE[] = {48, 49, 50, 51, -1};
 int arrSIX[] = {38, 37, 36, -1};
 int arrSEVEN[] = {35, 34, 33, 32, 31, -1};
-int arrEIGHT[] = {30, 29, 28, 27, 26 -1};
+int arrEIGHT[] = {30, 29, 28, 27, 26 - 1};
 int arrNINE[] = {13, 14, 15, 16, -1};
 int arrTEN[] = {17, 18, 19, -1};
 int arrELEVEN[] = {20, 21, 22, 23, 24, 25, -1};
@@ -86,25 +95,26 @@ void setup() {
   }
 
   if (rtc.lostPower()) {
-    Serial.println("Error: RTC lost power. Please set the time");
+    Serial.println(F("Error: RTC lost power. Please set the time"));
+    Serial.println(F("Clock time resetting to software upload time..."));
     // following line sets the RTC to the date & time this sketch was compiled
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+    printInstructions();
   }
+  Serial.flush();
 
   // need to start up the LED strip library
   grid.begin();
   grid.show();
+  grid.setBrightness(BRIGHTNESS);
 
-  // a message to the user of the serial port
-  Serial.println(F("Hello Richard"));
   // print instructions for programming the time
   printInstructions();
 
   // have it do a rainbow for fun
-  rainbow(5);
+
+  rainbow(10);
+
   colorWipe(colorBlack, 0);
 
   // start the clock
@@ -114,29 +124,69 @@ void setup() {
 void loop() {
   // if there is a serial connection check to see if the time has been changed
   if ( Serial.available() ) {
-    //read in string from serial and try to set the time on the RTC
-
+    readSerialMessage();
+    Serial.flush();
   }
 
-  // this block updates the time using the RTC
-  /*
-    if (Serial.available()) {
-    time_t t = processSyncMessage();
-    if (t != 0) {
-      Serial.print("Time set via connection to: ");
-      Serial.print(t);
-      Serial.println();
-      RTC.set(t);   // set the RTC and the system time to the received value
-      setTime(t);
-    }
-    }*/
-
-  //update current time from RTC
-  now = rtc.now();
+  //update current time
+  if(TEST_MODE) {
+    now = now + TimeSpan(TEST_SPEED);
+  }
+  else {
+    now = rtc.now();
+  }
 
   // show the time
   displayTime();
 }
+
+void readSerialMessage() {
+  interrupts();
+  delay(1000);
+  Serial.println("Reading serial data...");
+  delay(1000);
+  String input = Serial.readString();
+  
+  Serial.println("You entered: ");
+  Serial.println(input);
+  
+  if(input.charAt(0) == 'h' || input.charAt(0) == 'H') {
+    Serial.println("Hour: ");
+    int h = input.substring(1).toInt();
+    Serial.println(h);
+    DateTime newDate(now.year(), now.month(), now.day(), h, now.minute(), now.second());
+    rtc.adjust(newDate);
+  }
+  else if(input.charAt(0) == 'm' || input.charAt(0) == 'M') {
+    Serial.println("Minute: ");
+    int m = input.substring(1).toInt();
+    Serial.println(m);
+    DateTime newDate(now.year(), now.month(), now.day(), now.hour(), m, now.second());
+    rtc.adjust(newDate);
+  }
+  else if(input.charAt(0) == 's' || input.charAt(0) == 'S') {
+    Serial.println("Second: ");
+    int s = input.substring(1).toInt();
+    Serial.println(s);
+    DateTime newDate(now.year(), now.month(), now.day(), now.hour(), now.minute(), s);
+    rtc.adjust(newDate);
+  }
+  else if(input.charAt(0) == 't' || input.charAt(0) == 'T') {
+    rainbow(10);
+  }
+  else if(input.charAt(0) == 'w' || input.charAt(0) == 'W') {
+    colorWipe(colorWhite, 0);
+    delay(5000);
+  }
+  else if(input.charAt(0) == 'b' || input.charAt(0) == 'B') {
+    colorWipe(colorBlack, 0);
+    delay(5000);
+  }
+
+  colorWipe(colorBlack, 0);
+  String strTime = "";
+}
+
 
 // digital clock display of the time
 void digitalClockDisplay() {
@@ -918,7 +968,7 @@ void rainbow(uint8_t wait) {
   uint16_t i, j;
   for (j = 0; j < 256; j++) {
     for (i = 0; i < grid.numPixels(); i++) {
-      grid.setPixelColor(i, Wheel((i + j) & 100));
+      grid.setPixelColor(i, Wheel((i + j) & 255));
     }
     grid.show();
     delay(wait);
@@ -935,7 +985,7 @@ static void chase(uint32_t color, uint8_t wait) {
 }
 
 void fadeOut(int time) {
-  for (int i = 100; i > 0; --i) {
+  for (int i = FADE_TIME; i > 0; --i) {
     grid.setBrightness(i);
     grid.show();
     delay(time);
@@ -943,7 +993,7 @@ void fadeOut(int time) {
 }
 
 void fadeIn(int time) {
-  for (int i = 1; i < 100; ++i) {
+  for (int i = 1; i < FADE_TIME; ++i) {
     grid.setBrightness(i);
     grid.show();
     delay(time);
@@ -959,17 +1009,16 @@ void colorWipe(uint32_t color, uint8_t wait) {
   delay(wait);
 }
 
-// Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
 uint32_t Wheel(byte WheelPos) {
   if (WheelPos < 85) {
-    return grid.Color(WheelPos * 3, 100 - WheelPos * 3, 0);
+    return grid.Color((WheelPos * 3) * BRIGHTNESS, (255 - WheelPos * 3) * BRIGHTNESS / 255.0, 0);
   } else if (WheelPos < 170) {
     WheelPos -= 85;
-    return grid.Color(100 - WheelPos * 3, 0, WheelPos * 3);
+    return grid.Color((255 - WheelPos * 3) * BRIGHTNESS / 255.0, 0, (WheelPos * 3) * BRIGHTNESS / 255.0);
   } else {
     WheelPos -= 170;
-    return grid.Color(0, WheelPos * 3, 100 - WheelPos * 3);
+    return grid.Color(0, (WheelPos * 3) * BRIGHTNESS / 255.0, (255 - WheelPos * 3) * BRIGHTNESS / 255.0 );
   }
 }
 
@@ -1004,28 +1053,16 @@ void spellWord(int arrWord[], uint32_t intColor) {
 
 // print out the software version number
 void printInstructions(void) {
-  delay(2000);
-  Serial.println();
-  Serial.println("To set the time, enter");
-  Serial.println("...");
-  Serial.println();
+  Serial.println(F("--------Hello Richard!--------"));
+  Serial.println(F("To set the time, enter Y, M, or S followed by a number, followed by a newline character"));
+  Serial.println(F("Example: to set the year to 2017:"));
+  Serial.println(F("y2017"));
+  Serial.println(F("------------------------"));
+  Serial.println(F("------------------------"));
+  Serial.println(F("The current time is:"));
+  digitalClockDisplay();
+  Serial.println(F("------------------------"));
+  Serial.println(F("The brightness is set to:"));
+  Serial.println(BRIGHTNESS);
+  Serial.println(F("------------------------"));
 }
-/*
-  unsigned long processSyncMessage() {
-  unsigned long pctime = 0L;
-  const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
-
-  if (Serial.find(TIME_HEADER)) {
-    pctime = Serial.parseInt();
-    pctime = pctime - 18000;
-    return pctime;
-    if ( pctime < DEFAULT_TIME) { // check the value is a valid time (greater than Jan 1 2013)
-      pctime = 0L; // return 0 to indicate that the time is not valid
-    }
-    Serial.println();
-    Serial.println("Time Set via Serial");
-    Serial.println();
-  }
-  return pctime;
-  }
-*/
