@@ -6,10 +6,12 @@
     Written by Erik Werner and Monica Kim
     2017 12 14
 
-    Version 1.2
-    Updated 2015 12 15
-    Fixes brightness issue during rainbow
-    Adds date setting via serial port
+    Version 1.3
+    Updated 2017 12 18
+    Fixes error in identifying array (which fixes led flickering issue)
+    Fixes error where "five" was appearing with every "oclock"
+    Adds "minutes" to display whenever "five, ten, twenty, or twenty five" is displayed
+    Added definition of additional colors cyan, yellow, and magenta
  *  */
 
 
@@ -32,7 +34,7 @@
 #define BRIGHTNESS 100 // 50 to 100 seems to work well 
 #define FADE_TIME 100
 
-#define TEST_MODE true
+#define TEST_MODE false
 #define TEST_SPEED 50
 
 // Define some variables for the clock
@@ -50,6 +52,9 @@ uint32_t colorBlack = grid.Color(0, 0, 0);
 uint32_t colorRed = grid.Color(BRIGHTNESS, 0, 0);
 uint32_t colorGreen = grid.Color(0, BRIGHTNESS, 0);
 uint32_t colorBlue = grid.Color(0, 0, BRIGHTNESS);
+uint32_t colorYellow = grid.Color(BRIGHTNESS, BRIGHTNESS, 0);
+uint32_t colorMagenta = grid.Color(BRIGHTNESS, 0, BRIGHTNESS);
+uint32_t colorCyan = grid.Color(0, BRIGHTNESS, BRIGHTNESS);
 
 // the words to light up
 // each word is an array containing the
@@ -78,7 +83,7 @@ int arrFOUR[] = {44, 45, 46, 47, -1};
 int arrFIVE[] = {48, 49, 50, 51, -1};
 int arrSIX[] = {38, 37, 36, -1};
 int arrSEVEN[] = {35, 34, 33, 32, 31, -1};
-int arrEIGHT[] = {30, 29, 28, 27, 26 - 1};
+int arrEIGHT[] = {30, 29, 28, 27, 26, - 1};
 int arrNINE[] = {13, 14, 15, 16, -1};
 int arrTEN[] = {17, 18, 19, -1};
 int arrELEVEN[] = {20, 21, 22, 23, 24, 25, -1};
@@ -210,12 +215,14 @@ void displayTime() {
   // after their time has elapsed
   // colorWipe(colorBlack, 0);
 
-  // always display these thigns
+  // always display these things
   // (logo or name and "it is" LEDs)
   paintWord(arrHELLO, colorBlue);
   paintWord(arrRICHARD, colorGreen);
-  paintWord(arrIT, colorWhite);
+  paintWord(arrIT, colorCyan);
+  paintWord(arrIS, colorCyan);
 
+ /* Optional - don't care for color change on the "is"
   // if the time IS one of the following IS is green
   if ((now.minute() == 5)
       | (now.minute() == 10)
@@ -232,6 +239,7 @@ void displayTime() {
   } else {
     paintWord(arrIS, colorWhite);
   }
+*/
 
   // now we display the appropriate minute counter
   if ((now.minute() > 4) && (now.minute() < 10)) {
@@ -242,6 +250,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 9) && (now.minute() < 15)) {
     //TEN MINUTES;
@@ -251,6 +260,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 14) && (now.minute() < 20)) {
     // QUARTER
@@ -260,6 +270,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorWhite);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorBlack);
   }
   if ((now.minute() > 19) && (now.minute() < 25)) {
     //TWENTY MINUTES
@@ -269,6 +280,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorWhite);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 24) && (now.minute() < 30)) {
     //TWENTY FIVE
@@ -278,6 +290,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorWhite);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 29) && (now.minute() < 35)) {
     strCurrentTime = "half ";
@@ -286,6 +299,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorWhite);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorBlack);
   }
   if ((now.minute() > 34) && (now.minute() < 40)) {
     //TWENTY FIVE
@@ -295,7 +309,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorWhite);
-
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 39) && (now.minute() < 45)) {
     strCurrentTime = "twenty ";
@@ -304,6 +318,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorWhite);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() > 44) && (now.minute() < 50)) {
     strCurrentTime = "quarter ";
@@ -312,6 +327,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorWhite);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorBlack);
   }
   if ((now.minute() > 49) && (now.minute() < 55)) {
     strCurrentTime = "ten ";
@@ -320,6 +336,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorWhite);
   }
   if (now.minute() > 54) {
     strCurrentTime = "five ";
@@ -328,6 +345,7 @@ void displayTime() {
     paintWord(arrQUARTER, colorBlack);
     paintWord(arrHALF, colorBlack);
     paintWord(arrTWENTY, colorBlack);
+    paintWord(arrMINUTES, colorWhite);
   }
   if ((now.minute() < 5)) {
     switch (now.hour()) {
@@ -529,6 +547,8 @@ void displayTime() {
     paintWord(arrPAST, colorBlack);
     paintWord(arrOCLOCK, colorWhite);
     paintWord(arrTO, colorBlack);
+    paintWord(arrMFIVE, colorBlack);
+    paintWord(arrMINUTES, colorBlack);
   } else if ((now.minute() < 35) && (now.minute() > 4)) {
     strCurrentTime = strCurrentTime + "past ";
     paintWord(arrPAST, colorWhite);
@@ -1054,9 +1074,9 @@ void spellWord(int arrWord[], uint32_t intColor) {
 // print out the software version number
 void printInstructions(void) {
   Serial.println(F("--------Hello Richard!--------"));
-  Serial.println(F("To set the time, enter Y, M, or S followed by a number, followed by a newline character"));
-  Serial.println(F("Example: to set the year to 2017:"));
-  Serial.println(F("y2017"));
+  Serial.println(F("To set the time, enter H, M, or S followed by a number, followed by a newline character"));
+  Serial.println(F("Example: to set the hour to 2:00 PM:"));
+  Serial.println(F("h14"));
   Serial.println(F("------------------------"));
   Serial.println(F("------------------------"));
   Serial.println(F("The current time is:"));
